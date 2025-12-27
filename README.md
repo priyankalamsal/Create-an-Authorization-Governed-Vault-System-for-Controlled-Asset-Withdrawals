@@ -1,57 +1,75 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# Secure Vault System with Authorization Manager
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+A two-contract system for secure, authorized withdrawals on Ethereum. Funds can only be withdrawn with valid off-chain signed authorizations that can be used exactly once.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
-
-## Project Overview
-
-This example project includes:
-
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
-
-## Usage
-
-### Running Tests
-
-To run all the tests in the project, execute the following command:
-
-```shell
-npx hardhat test
+## Quick Start
+```bash
+docker-compose up --build
 ```
 
-You can also selectively run the Solidity or `node:test` tests:
+This starts a local blockchain, deploys both contracts, and runs tests. Contract addresses are printed to the console.
 
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
+**RPC Endpoint:** `http://localhost:8545`
+
+## How It Works
+
+### Two Contracts
+
+**SecureVault** - Holds funds and executes withdrawals
+- Anyone can deposit ETH
+- Withdrawals require valid authorization from AuthorizationManager
+- Updates state before transferring funds
+
+**AuthorizationManager** - Validates withdrawal permissions
+- Verifies ECDSA signatures from authorized signer
+- Ensures each authorization used only once (via nonces)
+- Binds permissions to specific vault, recipient, amount, and chain
+
+### Authorization Flow
+
+1. Off-chain signer creates signed message with: vault address, recipient, amount, chain ID, and unique nonce
+2. User calls `SecureVault.withdraw()` with authorization data
+3. Vault asks AuthorizationManager to verify
+4. If valid and unused, authorization is marked consumed and funds transfer
+5. If invalid or reused, transaction reverts
+
+## Project Structure
+```
+contracts/          # Solidity smart contracts
+scripts/            # Deployment scripts
+test/               # Automated tests
+docker/             # Docker configuration
+docker-compose.yml  # Local environment setup
 ```
 
-### Make a deployment to Sepolia
+## Security Features
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+✓ Replay protection (nonces prevent reuse)  
+✓ Signature verification (ECDSA)  
+✓ Context binding (vault, chain, recipient, amount)  
+✓ State-before-transfer pattern (reentrancy safe)  
+✓ Single-use initialization  
+✓ Separation of concerns (custody vs authorization)
 
-To run the deployment to a local chain:
+## Testing
 
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
+Tests verify:
+- Successful deposits and authorized withdrawals
+- Replay attack prevention
+- Invalid signature rejection
+- State consistency
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+All tests run automatically with `docker-compose up`.
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
+## Limitations
 
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
+- Native ETH only (no ERC20 tokens)
+- Fixed signer (set at deployment)
+- No upgrade mechanism
+- Assumes secure off-chain signing process
 
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
+## Manual Testing
 
-After setting the variable, you can run the deployment with the Sepolia network:
+After deployment, you can interact with contracts via the RPC endpoint at `http://localhost:8545` using tools like Hardhat console or ethers.js scripts.
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-```
+Contract addresses are logged during deployment.
