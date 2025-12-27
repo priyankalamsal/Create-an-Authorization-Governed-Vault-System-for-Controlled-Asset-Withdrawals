@@ -1,0 +1,27 @@
+services:
+  blockchain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: secure-vault-system
+    ports:
+      - "8545:8545"
+    command: sh -c "npx hardhat node --hostname 0.0.0.0"
+
+  deployer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vault-deployer
+    depends_on:
+      - blockchain
+    command: sh -c "sleep 8 && npx hardhat run scripts/deploy.ts --network localhost"
+
+  tester:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vault-tester
+    depends_on:
+      - deployer
+    command: sh -c "sleep 15 && npx hardhat test"
